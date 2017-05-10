@@ -1,8 +1,19 @@
 
+import akka.actor.ActorSystem
+
 import scala.collection._
 import org.json4s.{DefaultFormats, _}
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.Serialization.{write, writePretty}
+import play.api.libs.ws._
+import play.api.libs.ws.ahc._
+import play.api.libs.ws.ning.NingWSClient
+import akka.actor.ActorSystem._
+import akka.stream.ActorMaterializer
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 
 //these are the model for http://interview.euclidanalytics.com/
@@ -82,28 +93,63 @@ case class BinaryTreeNode (right:BinaryTreeNode, left: BinaryTreeNode, value: In
 //problem: given an array of Item, print the name only if all its dependencies have been printed
 case class Item (name:String, dependencies: List[String])
 
-
-//this model the following problem:
-//I have a list of string, each string represent an id, name, department of employess
-val employee = Array[String]("1,john,engineering",
-  "2,pippo,engineering",
-  "3,pluto,sales",
-  "4,minnie,marketing",
-  "5,qui,marketing",
-  "6,qui,marketing",
-  "7,quo,sales")
-
-//this represent the friendship of the employes: 1 is frined with 2, 2 is friend with 3 etc.
-val friendships= Array[String] ("1,2","2,3","1,6","4,7")
-
 case class Emp (id:Int, name:String, dep:String)
 case class Rel (from:Int, to:Int)
 case class NumOutRel(dep:String, numberOfRel:Int)
 //problem: print how many friends an employee has that are not in the employee's department
 //Implementation to do!
 
+
+
+
+//represent a Movie
+case class Movie (id:Int, duration: Double, rating: Double)
+
 class InterviewTests {
 
+
+  ////this model the following problem:
+  //I have a list of string, each string represent an id, name, department of employess
+  val employee: Array[String] = Array[String]("1,john,engineering",
+    "2,pippo,engineering",
+    "3,pluto,sales",
+    "4,minnie,marketing",
+    "5,qui,marketing",
+    "6,qui,marketing",
+    "7,quo,sales")
+
+  //this represent the friendship of the employes: 1 is frined with 2, 2 is friend with 3 etc.
+  val friendships: Array[String] = Array[String]("1,2", "2,3", "1,6", "4,7")
+
+
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+
+  //to do implement
+  def printFriendships(): Unit = {
+
+  }
+
+
+  def printTopTenRatedMovies(): Unit = {
+    val url = "https://gist.githubusercontent.com/assiotis/9c54190f86b308f0bd5822119a3c8cbe/raw/7da00efd07b31ba8263611c42ec34fefdf2be2fd/movies.csv"
+
+    val wsClient = NingWSClient()
+
+    val futResult = wsClient
+      .url(url)
+      .get()
+      .map {
+        wsResponse =>
+          wsResponse.body.split("\n").tail.map { l =>
+            val mv = l.split(",")
+            Movie(mv(0).toInt, mv(1).toDouble, mv(2).toDouble)
+          }.sortBy(-_.rating).take(10).foreach(m => println(m.id))
+      }
+
+    Await.ready(futResult, 5000 millis)
+    wsClient.close()
+  }
 
   //Print the items inorder, respecting the dependencies
   def printInOrder(items: List[Item]): Unit = {
@@ -201,10 +247,12 @@ class InterviewTests {
   def breadthFirst[T](g: Graph[T], doSomething: T => Unit): Unit = {
 
     def bdfs(nodes: List[Graph[T]]): Unit = {
-      val current = nodes.head
-      current.children.foreach(c => doSomething(c.value))
+      if (nodes.nonEmpty) {
+        val current = nodes.head
+        current.children.foreach(c => doSomething(c.value))
 
-      bdfs(nodes.tail ++ current.children)
+        bdfs(nodes.tail ++ current.children)
+      }
     }
 
     doSomething(g.value)
@@ -246,6 +294,7 @@ class InterviewTests {
       map1.map(kv => map2.get(kv._1).contains(kv._2)).toList.forall(b => b)
     }
   }
+}
 
 
   object Solution {
@@ -315,6 +364,9 @@ class InterviewTests {
     interview.findIthElem(myTree,8,0,x=>println(x.toString))
     */
 
+      println("print top ten rated movies")
+      interview.printTopTenRatedMovies()
+
       println("print in order")
       val itemstoPrint = List(Item("apple", List("orange", "banana")),
         Item("orange", List("mango")),
@@ -358,9 +410,6 @@ class InterviewTests {
     interview.findKth(rootBsd,6)*/
 
     }
-
-  }
-
 }
 
 

@@ -149,6 +149,7 @@ class InterviewTests {
 
     Await.ready(futResult, 5000 millis)
     wsClient.close()
+    system.terminate()
   }
 
   //Print the items inorder, respecting the dependencies
